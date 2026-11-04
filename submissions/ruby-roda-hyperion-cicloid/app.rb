@@ -15,7 +15,7 @@ Hyperion::AsyncPg.install!
 module Backend
   LOCK = Mutex.new
   # Per worker. WORKERS x PG_CONNECTIONS must stay at 95 or below.
-  PG_CONNECTIONS = Integer(ENV.fetch("PG_CONNECTIONS", "3"))
+  PG_CONNECTIONS = Integer(ENV.fetch("PG_CONNECTIONS", "1"))
 
   def self.conduit
     @conduit || LOCK.synchronize do
