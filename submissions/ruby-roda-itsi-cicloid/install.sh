@@ -7,8 +7,8 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends build-essential curl ca-certificates pkg-config \
   libssl-dev libyaml-dev zlib1g-dev libffi-dev libgmp-dev libjemalloc-dev rustc \
-  libpq-dev libcrypt1
-# libcrypt1: bcrypt (auth.rb).
+  libpq-dev libcrypt1 libclang-dev
+# libcrypt1: bcrypt (auth.rb). libclang-dev: bindgen, for Itsi's Rust build.
 
 # Tune for the CPU it is built on (the benchmark droplet is x86_64). On arm64 -march=native combines
 # with Ruby's pointer-authentication flags into binaries that crash under some VMs, so skip it there.
@@ -30,6 +30,23 @@ if ! grep -q "$SODIUM" /usr/local/lib/pkgconfig/libsodium.pc 2>/dev/null; then
   (cd "$work/libsodium-$SODIUM" && CFLAGS="-O3 $NATIVE" ./configure --disable-static \
     && make -j"$(nproc)" && make install)
   ldconfig
+fi
+
+# Rust, for building Itsi from source (build.sh): rustup-init 1.29.3 (checksummed) installs exactly
+# Rust 1.99.1 under /opt/rustup and /opt/cargo, readable by the build user.
+RUSTUP=1.29.3
+RUST=1.99.1
+if [ "$(RUSTUP_HOME=/opt/rustup /opt/cargo/bin/rustc --version 2>/dev/null | cut -d' ' -f2)" != "$RUST" ]; then
+  case "$(uname -m)" in
+    x86_64) triple=x86_64-unknown-linux-gnu; sum=b1c8cb14e30889e7e2999e6b69e62d9e9b9ffc0f4df8180564d306d9680e6c55 ;;
+    aarch64) triple=aarch64-unknown-linux-gnu; sum=9f608c142e0e38a78957d0661ba1dfaf0b6fb37184cfaa4b9a0aa57af6184282 ;;
+    *) echo "unsupported architecture $(uname -m)"; exit 1 ;;
+  esac
+  fetch "https://static.rust-lang.org/rustup/archive/$RUSTUP/$triple/rustup-init" "$sum" rustup-init
+  chmod +x "$work/rustup-init"
+  RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo "$work/rustup-init" -y --no-modify-path --profile minimal \
+    --default-toolchain "$RUST"
+  chmod -R a+rX /opt/rustup /opt/cargo
 fi
 
 RUBY_VERSION=4.0.7
