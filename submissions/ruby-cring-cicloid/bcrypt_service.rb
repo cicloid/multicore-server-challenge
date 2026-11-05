@@ -65,7 +65,7 @@ module BcryptService
     def read(socket)
       loop do
         message = socket.recv(256)
-        return if message.empty? # the worker is gone
+        return if message.nil? || message.empty? # the worker is gone
 
         id = message.unpack1(HEADER)
         setting, password = message.byteslice(4, message.bytesize - 4).split("\0", 2)
